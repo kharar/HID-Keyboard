@@ -1,40 +1,41 @@
 /*
-  Pro Micro Keyboard Matrix → USB HID
-  Uses NicoHood HID-Project (BootKeyboard) for clean HID keycodes.
-
-  Wiring (example 4x5):
-  Rows:    2,3,4,5       (OUTPUT, set LOW one-at-a-time)
-  Columns: 6,7,8,9,10    (INPUT_PULLUP)
+  ESP32-S2 Lolin S2 Mini
+  Keyboard Matrix → USB HID
+  Using TinyUSB built-in keyboard
 */
 
-#include <HID-Project.h>
-#include <HID-Settings.h>
+#include "USB.h"
+#include "USBHIDKeyboard.h"
 
 // ---------- Matrix size ----------
 const uint8_t ROWS = 4;
 const uint8_t COLS = 5;
 
 // ---------- Pins (adjust to your wiring) ----------
-const uint8_t rowPins[ROWS] = {2, 3, 4, 5};
+// Pick GPIOs safe for matrix scanning
+const uint8_t rowPins[ROWS] = {2, 3, 4, 5};    // example, check your board pinout
 const uint8_t colPins[COLS] = {6, 7, 8, 9, 10};
 
 // ---------- Debounce ----------
 const uint16_t DEBOUNCE_MS = 10;
 
+// ---------- HID Keyboard ----------
+USBHIDKeyboard keyboard;
+USBHID hid;
+
 // ---------- Key map ----------
-// Use KEY_* from HID-Project. Use 0 for "no key".
-const KeyboardKeycode keymap[ROWS][COLS] = {
-  // c0          c1             c2        c3         c4
-  { KEY_Q,        KEY_W,        KEY_E,    KEY_R,     KEY_T    },  // r0
-  { KEY_A,        KEY_S,        KEY_D,    KEY_F,     KEY_G    },  // r1
-  { KEY_Z,        KEY_X,        KEY_C,    KEY_V,     KEY_B    },  // r2
-  { KEY_LEFT_CTRL, KEY_LEFT_SHIFT, KEY_SPACE, KEY_ENTER, KEY_ESC }   // r3
+// Use HID_KEY_* from TinyUSB
+const uint8_t keymap[ROWS][COLS] = {
+  { HID_KEY_Q, HID_KEY_W, HID_KEY_E, HID_KEY_R, HID_KEY_T },
+  { HID_KEY_A, HID_KEY_S, HID_KEY_D, HID_KEY_F, HID_KEY_G },
+  { HID_KEY_Z, HID_KEY_X, HID_KEY_C, HID_KEY_V, HID_KEY_B },
+  { HID_KEY_CONTROL_LEFT, HID_KEY_SHIFT_LEFT, HID_KEY_SPACE, HID_KEY_ENTER, HID_KEY_ESCAPE }
 };
 
 // ---------- State tracking ----------
-bool keyState[ROWS][COLS];          // stable debounced state
-bool keyStatePrev[ROWS][COLS];      // previous stable state
-uint32_t lastChangeMs[ROWS][COLS];  // last time we saw a transition (for debounce)
+bool keyState[ROWS][COLS];
+bool keyStatePrev[ROWS][COLS];
+uint32_t lastChangeMs[ROWS][COLS];
 
 void setup() {
   // Rows as outputs, idle HIGH
@@ -48,7 +49,7 @@ void setup() {
     pinMode(colPins[c], INPUT_PULLUP);
   }
 
-  // Clear states
+  // Init states
   for (uint8_t r = 0; r < ROWS; r++) {
     for (uint8_t c = 0; c < COLS; c++) {
       keyState[r][c] = false;
@@ -57,28 +58,26 @@ void setup() {
     }
   }
 
-  BootKeyboard.begin(); // Start USB HID
-  delay(50);
+  // Start USB HID
+  USB.begin();
+  hid.begin();
+  keyboard.begin();
 }
 
-// Read one key (r,c) with current row driven LOW
 inline bool readSwitch(uint8_t r, uint8_t c) {
-  // With row LOW and pullup on column, pressed = LOW
   return (digitalRead(colPins[c]) == LOW);
 }
 
 void scanMatrix() {
   for (uint8_t r = 0; r < ROWS; r++) {
-    // Drive current row LOW
     digitalWrite(rowPins[r], LOW);
-    delayMicroseconds(3); // settle a tiny bit
+    delayMicroseconds(3);
 
     for (uint8_t c = 0; c < COLS; c++) {
       bool rawPressed = readSwitch(r, c);
       bool current = keyState[r][c];
       uint32_t now = millis();
 
-      // Debounce logic
       if (rawPressed != current) {
         if ((now - lastChangeMs[r][c]) >= DEBOUNCE_MS) {
           keyState[r][c] = rawPressed;
@@ -89,7 +88,6 @@ void scanMatrix() {
       }
     }
 
-    // Release row (idle HIGH)
     digitalWrite(rowPins[r], HIGH);
   }
 }
@@ -100,12 +98,12 @@ void sendHIDChanges() {
       bool now = keyState[r][c];
       bool was = keyStatePrev[r][c];
       if (now != was) {
-        KeyboardKeycode kc = keymap[r][c];
-        if (kc != 0) {   // 0 = no key assigned
+        uint8_t kc = keymap[r][c];
+        if (kc != 0) {
           if (now) {
-            BootKeyboard.press(kc);
+            keyboard.press(kc);
           } else {
-            BootKeyboard.release(kc);
+            keyboard.release(kc);
           }
         }
         keyStatePrev[r][c] = now;
@@ -117,5 +115,5 @@ void sendHIDChanges() {
 void loop() {
   scanMatrix();
   sendHIDChanges();
-  delay(1); // small idle time
+  delay(1);
 }

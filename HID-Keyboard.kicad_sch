@@ -10119,7 +10119,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "9037b47b-b03e-40fa-97a4-aee0ad9198e7")
-		(property "Reference" "J4"
+		(property "Reference" "J3"
 			(at 140.97 104.1399 0)
 			(effects
 				(font
@@ -10188,7 +10188,7 @@
 		(instances
 			(project ""
 				(path "/37be5ec2-b162-4a88-84e9-920f3ef59176"
-					(reference "J4")
+					(reference "J3")
 					(unit 1)
 				)
 			)
@@ -10337,7 +10337,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "df919b52-6faa-4f8a-9ec4-b71068337aca")
-		(property "Reference" "J3"
+		(property "Reference" "J4"
 			(at 192.1256 114.3 90)
 			(effects
 				(font
@@ -10446,7 +10446,7 @@
 		(instances
 			(project ""
 				(path "/37be5ec2-b162-4a88-84e9-920f3ef59176"
-					(reference "J3")
+					(reference "J4")
 					(unit 1)
 				)
 			)
